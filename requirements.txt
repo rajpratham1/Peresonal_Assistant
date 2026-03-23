@@ -1,0 +1,7 @@
+vosk
+pyttsx3
+scikit-learn
+numpy
+pyaudio
+pyautogui
+faster-whisper
