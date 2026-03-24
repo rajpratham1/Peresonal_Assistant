@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+chroma_db/
+whatsapp_session/
+screenshots/
+models/
+token.json
+credentials.json
+*.pyc

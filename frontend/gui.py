@@ -2,148 +2,229 @@ from __future__ import annotations
 
 import json
 import threading
-import tkinter as tk
-from tkinter import ttk
+import customtkinter as ctk
 
 from backend.main import Assistant, AssistantResponse
 from backend.speech.speech_to_text import listen
 
+# Setup global styling for Modern UI
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
+
+
+class ChatBubble(ctk.CTkFrame):
+    def __init__(self, master, text: str, is_user: bool, outcome_text: str | None = None, **kwargs):
+        super().__init__(master, fg_color="transparent", **kwargs)
+        
+        # Configure layout to push user messages right, assistant left
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+
+        bubble_color = "#2b5278" if is_user else "#2c2c2e"
+        text_color = "white"
+        
+        content_frame = ctk.CTkFrame(self, fg_color=bubble_color, corner_radius=15, border_width=0)
+        
+        if is_user:
+            # User bubble on the right
+            content_frame.grid(row=0, column=1, sticky="e", padx=(40, 10), pady=10)
+        else:
+            # Assistant bubble on the left
+            content_frame.grid(row=0, column=0, sticky="w", padx=(10, 40), pady=10)
+            
+        msg_label = ctk.CTkLabel(
+            content_frame, 
+            text=text, 
+            text_color=text_color, 
+            wraplength=600, 
+            justify="left" if not is_user else "right",
+            font=("Inter", 14)
+        )
+        msg_label.pack(padx=15, pady=10)
+        
+        # Display Outcome pill below assistant message if an action was executed
+        if outcome_text and not is_user:
+            outcome_frame = ctk.CTkFrame(content_frame, fg_color="#1c1c1e", corner_radius=10)
+            outcome_frame.pack(padx=10, pady=(0, 10), fill="x", expand=True)
+            outcome_label = ctk.CTkLabel(
+                outcome_frame,
+                text=f"🎯 {outcome_text}",
+                text_color="#a8a8b3",
+                font=("Inter", 12, "italic"),
+                wraplength=580,
+                justify="left"
+            )
+            outcome_label.pack(padx=10, pady=5)
+
 
 class AssistantGUI:
-    def __init__(self, root: tk.Tk) -> None:
+    def __init__(self, root: ctk.CTk) -> None:
         self.root = root
-        self.root.title("Offline Personal Assistant")
-        self.root.geometry("920x640")
-
+        self.root.title("Artificial Intelligence Assistant")
+        self.root.geometry("800x700")
+        self.root.minsize(500, 400)
+        
+        # Configure root to let chat history expand
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+        
         self.assistant = Assistant()
         self.voice_enabled = False
         self.voice_thread: threading.Thread | None = None
-
-        frame = ttk.Frame(root, padding=16)
-        frame.pack(fill="both", expand=True)
-
-        self.command_var = tk.StringVar()
-        self.status_var = tk.StringVar(value="Ready")
-        self.debug_enabled_var = tk.BooleanVar(value=True)
-
-        ttk.Label(frame, text="Command").pack(anchor="w")
-        self.entry = ttk.Entry(frame, textvariable=self.command_var)
-        self.entry.pack(fill="x", pady=(0, 12))
+        
+        # -- Layout --
+        # 1. Chat History Area
+        self.chat_history = ctk.CTkScrollableFrame(self.root, fg_color="transparent")
+        self.chat_history.grid(row=0, column=0, sticky="nsew", padx=10, pady=(10, 0))
+        
+        # 2. Input Area
+        self.input_frame = ctk.CTkFrame(self.root, fg_color="transparent")
+        self.input_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
+        self.input_frame.grid_columnconfigure(1, weight=1)
+        
+        self.language_var = ctk.StringVar(value="English")
+        self.lang_selector = ctk.CTkSegmentedButton(
+            self.input_frame, 
+            values=["English", "Hindi"],
+            variable=self.language_var,
+            command=self.change_language,
+            font=("Inter", 12)
+        )
+        self.lang_selector.grid(row=0, column=0, padx=(0, 10))
+        
+        self.command_var = ctk.StringVar()
+        self.entry = ctk.CTkEntry(
+            self.input_frame, 
+            textvariable=self.command_var, 
+            placeholder_text="Message assistant...", 
+            height=45,
+            corner_radius=22,
+            font=("Inter", 14),
+            border_width=1
+        )
+        self.entry.grid(row=0, column=1, sticky="ew", padx=(0, 10))
         self.entry.bind("<Return>", self.run_command)
-
-        button_row = ttk.Frame(frame)
-        button_row.pack(fill="x", pady=(0, 12))
-
-        ttk.Button(button_row, text="Run", command=self.run_command).pack(side="left")
-        ttk.Button(button_row, text="Clear", command=self.clear_output).pack(side="left", padx=(8, 0))
-        ttk.Button(button_row, text="Start Voice", command=self.start_voice_mode).pack(side="left", padx=(8, 0))
-        ttk.Button(button_row, text="Stop Voice", command=self.stop_voice_mode).pack(side="left", padx=(8, 0))
-        ttk.Checkbutton(button_row, text="Show Debug", variable=self.debug_enabled_var).pack(side="right")
-
-        pane = ttk.Panedwindow(frame, orient="horizontal")
-        pane.pack(fill="both", expand=True)
-
-        left = ttk.Frame(pane)
-        right = ttk.Frame(pane)
-        pane.add(left, weight=2)
-        pane.add(right, weight=1)
-
-        ttk.Label(left, text="Assistant Output").pack(anchor="w")
-        self.output = tk.Text(left, height=20, wrap="word")
-        self.output.pack(fill="both", expand=True)
-
-        ttk.Label(right, text="Debug").pack(anchor="w")
-        self.debug_output = tk.Text(right, height=20, wrap="word")
-        self.debug_output.pack(fill="both", expand=True)
-
-        ttk.Label(frame, textvariable=self.status_var).pack(anchor="w", pady=(10, 0))
-        ttk.Label(
-            frame,
-            text=(
-                "Examples: open youtube and play aaj ki raat, save contact alice phone 9876543210 whatsapp Alice, "
-                "message alice saying hello, set alarm for 12:30, volume up, take screenshot, shutdown."
-            ),
-            wraplength=860,
-            justify="left",
-        ).pack(anchor="w", pady=(8, 0))
-
+        
+        self.voice_btn = ctk.CTkButton(
+            self.input_frame, 
+            text="🎙️ Listen", 
+            width=100, 
+            height=45, 
+            corner_radius=22, 
+            font=("Inter", 14, "bold"),
+            command=self.toggle_voice
+        )
+        self.voice_btn.grid(row=0, column=2, padx=(0, 10))
+        
+        self.send_btn = ctk.CTkButton(
+            self.input_frame, 
+            text="➤ Send", 
+            width=80, 
+            height=45, 
+            corner_radius=22, 
+            command=self.run_command,
+            font=("Inter", 14)
+        )
+        self.send_btn.grid(row=0, column=3)
+        
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+        
+        # Introduction Message
+        self.add_message("Hello! I am your offline personal assistant. You can text me or click Listen to speak.", is_user=False)
+
+    def add_message(self, text: str, is_user: bool, outcome_text: str | None = None):
+        """Append a new chat bubble to the scrollable frame."""
+        bubble = ChatBubble(self.chat_history, text=text, is_user=is_user, outcome_text=outcome_text)
+        bubble.pack(fill="x", padx=5, pady=2)
+        
+        # Auto-scroll to the bottom. _parent_canvas is internal but standard practice for fast jumping in CTk.
+        self.root.update_idletasks()
+        try:
+            self.chat_history._parent_canvas.yview_moveto(1.0)
+        except AttributeError:
+            pass
+
+    def change_language(self, value):
+        self.assistant.language = "hi" if value == "Hindi" else "en"
+        self.add_message(f"System language switched to {value}", is_user=False)
 
     def run_command(self, *_args) -> None:
+        """Called when the user hits Return or Send button."""
         command = self.command_var.get().strip()
         if not command:
-            self.status_var.set("Enter a command.")
             return
+            
+        self.command_var.set("")
+        self.add_message(command, is_user=True)
+        
+        # Process asynchronously so the GUI doesn't freeze
+        threading.Thread(target=self._process_command, args=(command,), daemon=True).start()
 
+    def _process_command(self, command: str):
         response = self.assistant.handle_text(command, voice_response=False)
-        self._render_response(command, response)
-        if response.should_exit:
-            self.root.after(500, self.root.destroy)
+        self.root.after(0, lambda r=response: self._render_response(r))
 
-    def start_voice_mode(self) -> None:
+    def toggle_voice(self) -> None:
+        """Switch between listening and idle state."""
         if self.voice_enabled:
-            self.status_var.set("Voice mode is already running.")
-            return
-
-        self.voice_enabled = True
-        self.status_var.set("Voice mode started. Speak a command.")
-        self.voice_thread = threading.Thread(target=self._voice_loop, daemon=True)
-        self.voice_thread.start()
-
-    def stop_voice_mode(self) -> None:
-        self.voice_enabled = False
-        self.status_var.set("Voice mode will stop after the current listen cycle.")
+            # Turning off
+            self.voice_enabled = False
+            self.voice_btn.configure(text="🎙️ Stopping...", fg_color="#b22222", hover_color="#8b1a1a")
+        else:
+            # Turning on
+            self.voice_enabled = True
+            self.voice_btn.configure(text="🔴 Listening", fg_color="#b22222", hover_color="#8b1a1a")
+            self.voice_thread = threading.Thread(target=self._voice_loop, daemon=True)
+            self.voice_thread.start()
 
     def _voice_loop(self) -> None:
         while self.voice_enabled:
-            self._set_status("Listening...")
+            lang_code = "hi" if self.language_var.get() == "Hindi" else "en"
             try:
-                command = listen()
+                command = listen(language=lang_code)
             except Exception as exc:
                 self.voice_enabled = False
-                self._set_status(f"Voice mode failed: {exc}")
-                return
+                self.root.after(0, lambda e=exc: self.add_message(f"Voice engine error: {e}", is_user=False))
+                break
 
             if not self.voice_enabled:
                 break
+                
             if not command:
                 continue
 
+            # Add User's spoken transcript
+            self.root.after(0, lambda c=command: self.add_message(c, is_user=True))
+            
+            # Process & Reply
             response = self.assistant.handle_text(command, voice_response=True)
-            self.root.after(0, lambda c=command, r=response: self._render_response(c, r))
+            self.root.after(0, lambda r=response: self._render_response(r))
 
             if response.should_exit:
                 self.voice_enabled = False
-                self.root.after(500, self.root.destroy)
+                self.root.after(1000, self.root.destroy)
                 return
 
-        self._set_status("Voice mode stopped.")
+        def _reset_btn():
+            self.voice_btn.configure(text="🎙️ Listen", fg_color=["#3a7ebf", "#1f538d"], hover_color=["#325882", "#14375e"])
+        
+        self.root.after(0, _reset_btn)
 
-    def _render_response(self, command: str, response: AssistantResponse) -> None:
-        self.output.insert("end", f"You: {command}\nAssistant: {response.text}\n\n")
-        self.output.see("end")
-        self.status_var.set(response.text)
+    def _render_response(self, response: AssistantResponse) -> None:
+        # Formulate outcome context
+        outcome = None
+        if response.debug.action_text or response.debug.intent:
+            parts = []
+            if response.debug.intent:
+                parts.append(f"Intent: {response.debug.intent}")
+            if response.debug.action_text:
+                parts.append(f"Action: {response.debug.action_text}")
+            outcome = " | ".join(parts)
+            
+        self.add_message(response.text, is_user=False, outcome_text=outcome)
 
-        if self.debug_enabled_var.get():
-            debug_payload = {
-                "heard_text": response.debug.heard_text,
-                "route": response.debug.route,
-                "intent": response.debug.intent,
-                "action_text": response.debug.action_text,
-                "llm_payload": response.debug.llm_payload,
-                "error": response.debug.error,
-            }
-            self.debug_output.insert("end", json.dumps(debug_payload, indent=2) + "\n\n")
-            self.debug_output.see("end")
-
-    def _set_status(self, text: str) -> None:
-        self.root.after(0, lambda value=text: self.status_var.set(value))
-
-    def clear_output(self) -> None:
-        self.output.delete("1.0", "end")
-        self.debug_output.delete("1.0", "end")
-        self.command_var.set("")
-        self.status_var.set("Ready")
+        if response.should_exit:
+            self.root.after(1000, self.root.destroy)
 
     def on_close(self) -> None:
         self.voice_enabled = False
@@ -152,8 +233,8 @@ class AssistantGUI:
 
 
 def main() -> None:
-    root = tk.Tk()
-    AssistantGUI(root)
+    root = ctk.CTk()
+    app = AssistantGUI(root)
     root.mainloop()
 
 
