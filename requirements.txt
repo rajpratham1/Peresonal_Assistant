@@ -6,3 +6,14 @@ pyaudio
 pyautogui
 faster-whisper
 customtkinter
+duckduckgo_search
+requests
+pillow
+pygetwindow
+easyocr
+torch
+torchvision
+torchaudio
+langchain
+chromadb
+playwright

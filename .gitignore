@@ -7,3 +7,9 @@ models/
 token.json
 credentials.json
 *.pyc
+*.exe
+*.dll
+*.gguf
+llama.zip
+.vscode/
+.idea/

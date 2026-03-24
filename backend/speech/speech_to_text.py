@@ -72,13 +72,20 @@ def _capture_audio(
         stream.start_stream()
         while True:
             data = stream.read(chunk_size, exception_on_overflow=False)
-            frames.append(data)
             rms = audioop.rms(data, 2)
+            
             if rms > silence_threshold:
-                heard_voice = True
+                if not heard_voice:
+                    heard_voice = True
+                    # Keep only last chunk for seamless preroll, dropping hours of silence
+                    if frames:
+                        frames = [frames[-1]]
                 silent_chunks = 0
             elif heard_voice:
                 silent_chunks += 1
+
+            if heard_voice:
+                frames.append(data)
 
             if heard_voice and len(frames) >= min_chunks and silent_chunks >= max_silence_chunks:
                 break
@@ -136,3 +143,25 @@ def listen(sample_rate: int = 16000, chunk_size: int = 4000, language: str = "en
         if SPEECH_BACKEND == "whisper":
             return _listen_vosk(sample_rate=sample_rate, chunk_size=chunk_size)
         raise
+
+def wait_for_wake_word(sample_rate: int = 16000, chunk_size: int = 4000, wake_word: str = "viru") -> None:
+    """Blocks with ~0 CPU overhead until exact grammar wake word is spoken."""
+    if pyaudio is None or KaldiRecognizer is None:
+        return
+        
+    recognizer = KaldiRecognizer(load_model(), sample_rate, f'["{wake_word}", "[unk]"]')
+    audio = pyaudio.PyAudio()
+    stream = audio.open(format=pyaudio.paInt16, channels=1, rate=sample_rate, input=True, frames_per_buffer=chunk_size)
+    
+    try:
+        stream.start_stream()
+        while True:
+            data = stream.read(chunk_size, exception_on_overflow=False)
+            if recognizer.AcceptWaveform(data):
+                res = json.loads(recognizer.Result())
+                if wake_word in res.get("text", ""):
+                    break
+    finally:
+        stream.stop_stream()
+        stream.close()
+        audio.terminate()
