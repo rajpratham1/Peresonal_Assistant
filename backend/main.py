@@ -82,6 +82,7 @@ class Assistant:
     def __init__(self) -> None:
         init()
         self._ensure_model()
+        self._ensure_llm()
         self.intent_model = IntentModel()
         self.llm_parser = LLMCommandParser()
         self.language = "en"
@@ -89,6 +90,30 @@ class Assistant:
         self._scheduler_stop = threading.Event()
         self._scheduler_thread = threading.Thread(target=self._scheduler_loop, daemon=True)
         self._scheduler_thread.start()
+
+    @staticmethod
+    def _ensure_llm() -> None:
+        import socket
+        import subprocess
+        from backend.config import PROJECT_ROOT
+
+        # Check if Port 8080 is already bound
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(('127.0.0.1', 8080)) == 0:
+                return  # LLM server is already spinning
+                
+        # Proactively search for the server binary and target model inside project scope
+        llm_binary = PROJECT_ROOT / "llama-server.exe"  
+        model_file = PROJECT_ROOT / "backend" / "models" / "llm" / "qwen2.5-3b-instruct-q4_k_m.gguf"
+        
+        if llm_binary.exists() and model_file.exists():
+            subprocess.Popen([
+                str(llm_binary),
+                "-m", str(model_file),
+                "-c", "4096",
+                "--host", "127.0.0.1",
+                "--port", "8080"
+            ], creationflags=subprocess.CREATE_NO_WINDOW)
 
     @staticmethod
     def _ensure_model() -> None:
@@ -181,12 +206,6 @@ class Assistant:
                 speak(response.text, language=self.language)
             return response
 
-        if normalized == "viru":
-            response = AssistantResponse("जी मालिक", debug=DebugInfo(heard_text=normalized, intent="wake_word"))
-            if voice_response:
-                speak(response.text, language="hi")
-            return response
-
         debug = DebugInfo(heard_text=normalized)
         confirmation_response = self._handle_confirmation(normalized, debug)
         if confirmation_response is not None:
@@ -252,7 +271,9 @@ class Assistant:
         return self._dispatch(intent, command, debug)
 
     def _handle_llm_command(self, text: str) -> AssistantResponse | None:
-        payload = self.llm_parser.parse(text)
+        from backend.actions.window_awareness import get_active_window_info
+        window_ctx = get_active_window_info()
+        payload = self.llm_parser.parse(f"CONTEXT: {window_ctx}\nUSER_INPUT: {text}")
         if not payload:
             return None
 
@@ -311,6 +332,12 @@ class Assistant:
             return self._dispatch("send_message", f"message {target} saying {message}", debug)
         if action == "open_folder":
             return self._dispatch("open_folder", f"open folder {str(payload.get('target', '')).strip()}", debug)
+        if action == "python_automation":
+            ai_code = str(payload.get("code", "")).strip()
+            return self._dispatch("python_automation", ai_code, debug)
+        if action == "web_search":
+            query = str(payload.get("query", "")).strip()
+            return self._dispatch("web_search", query, debug)
         return self._dispatch(action, text, debug)
 
     def _dispatch(
@@ -542,6 +569,25 @@ class Assistant:
             if intent == "stop":
                 return AssistantResponse("Stopping assistant", should_exit=True, debug=debug)
 
+            if intent == "python_automation":
+                if not confirmed:
+                   return self._request_confirmation(intent, text, "I am about to take full physical control of your mouse and keyboard. Say yes to confirm.", debug)
+                   
+                try:
+                    import pyautogui
+                    import time
+                    import os
+                    env = {"pyautogui": pyautogui, "time": time, "os": os}
+                    exec(text, env)
+                    return AssistantResponse("Successfully executed computer automation.", debug=debug)
+                except Exception as e:
+                    return AssistantResponse(f"Automation execution failed: {e}", debug=debug)
+
+            if intent == "web_search":
+                from backend.actions.web_search import search_web
+                results = search_web(text)
+                return AssistantResponse(results, debug=debug)
+
             return AssistantResponse("Command not recognized", debug=debug)
         except Exception as exc:  # pragma: no cover
             debug.error = str(exc)
@@ -583,6 +629,10 @@ class Assistant:
         speak("Assistant is ready", language=self.language)
         try:
             while True:
+                from backend.speech.speech_to_text import wait_for_wake_word
+                wait_for_wake_word(wake_word="viru")
+                speak("जी मालिक", language="hi")
+                
                 command = listen()
                 response = self.handle_text(command)
                 if response.should_exit:
