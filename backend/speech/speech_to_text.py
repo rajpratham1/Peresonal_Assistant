@@ -49,7 +49,7 @@ def _capture_audio(
     sample_rate: int = 16000,
     chunk_size: int = 1024,
     silence_threshold: int = 700,
-    max_silence_chunks: int = 20,
+    max_silence_chunks: int = 8,
     min_chunks: int = 8,
 ) -> bytes:
     if pyaudio is None:
@@ -117,20 +117,20 @@ def _listen_vosk(sample_rate: int = 16000, chunk_size: int = 4000) -> str:
         audio.terminate()
 
 
-def _listen_whisper(sample_rate: int = 16000) -> str:
+def _listen_whisper(sample_rate: int = 16000, language: str = "en") -> str:
     audio_bytes = _capture_audio(sample_rate=sample_rate)
     if not audio_bytes:
         return ""
     audio_np = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
-    segments, _info = load_whisper_model().transcribe(audio_np, language="en", vad_filter=True)
+    segments, _info = load_whisper_model().transcribe(audio_np, language=language, vad_filter=True)
     text = " ".join(segment.text.strip() for segment in segments).strip()
     return text
 
 
-def listen(sample_rate: int = 16000, chunk_size: int = 4000) -> str:
+def listen(sample_rate: int = 16000, chunk_size: int = 4000, language: str = "en") -> str:
     try:
         if SPEECH_BACKEND == "whisper":
-            return _listen_whisper(sample_rate=sample_rate)
+            return _listen_whisper(sample_rate=sample_rate, language=language)
         return _listen_vosk(sample_rate=sample_rate, chunk_size=chunk_size)
     except Exception:
         if SPEECH_BACKEND == "whisper":

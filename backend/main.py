@@ -84,6 +84,7 @@ class Assistant:
         self._ensure_model()
         self.intent_model = IntentModel()
         self.llm_parser = LLMCommandParser()
+        self.language = "en"
         self.pending_confirmation: PendingConfirmation | None = None
         self._scheduler_stop = threading.Event()
         self._scheduler_thread = threading.Thread(target=self._scheduler_loop, daemon=True)
@@ -148,6 +149,20 @@ class Assistant:
             return "switch_window"
         if normalized in {"minimize window", "minimise window"}:
             return "minimize_window"
+        if normalized in {"read screen", "read my screen", "what is on my screen"}:
+            return "read_screen"
+        if normalized in {"enable ghost mode", "add to startup", "run on background startup"}:
+            return "enable_ghost_mode"
+        if normalized in {"disable ghost mode", "remove from startup"}:
+            return "disable_ghost_mode"
+        if "meeting" in normalized or "calendar" in normalized or "schedule" in normalized:
+            return "check_calendar"
+        if normalized in {"turn on lights", "lights on"}:
+            return "lights_on"
+        if normalized in {"turn off lights", "lights off"}:
+            return "lights_off"
+        if normalized in {"sync memory", "index my files", "read my desktop", "memorize desktop"}:
+            return "sync_memory"
         if normalized.startswith("open folder "):
             return "open_folder"
         if "youtube" in normalized and "play " in normalized:
@@ -163,7 +178,13 @@ class Assistant:
         if not normalized:
             response = AssistantResponse("I did not hear a command.")
             if voice_response:
-                speak(response.text)
+                speak(response.text, language=self.language)
+            return response
+
+        if normalized == "viru":
+            response = AssistantResponse("जी मालिक", debug=DebugInfo(heard_text=normalized, intent="wake_word"))
+            if voice_response:
+                speak(response.text, language="hi")
             return response
 
         debug = DebugInfo(heard_text=normalized)
@@ -192,7 +213,7 @@ class Assistant:
             debug=last_debug,
         )
         if voice_response and final_response.text:
-            speak(final_response.text)
+            speak(final_response.text, language=self.language)
         return final_response
 
     def _handle_confirmation(self, text: str, debug: DebugInfo) -> AssistantResponse | None:
@@ -362,8 +383,21 @@ class Assistant:
                 target_name = self._resolve_contact_target(target)
                 if self._requires_confirmation(intent) and not confirmed:
                     return self._request_confirmation(intent, f"message {target_name} saying {message}", f"Ready to message {target_name}. Say yes to confirm.", debug)
-                send_desktop_message(target_name, message)
-                return AssistantResponse(f"Message sent to {target_name}", debug=debug)
+                
+                # Use new silent Playwright WA Automation
+                from backend.actions.whatsapp_playwright import send_whatsapp_message
+                res = send_whatsapp_message(target_name, message)
+                return AssistantResponse(res, debug=debug)
+
+            if intent == "check_calendar":
+                from backend.actions.calendar_sync import get_next_meetings
+                res = get_next_meetings()
+                return AssistantResponse(res, debug=debug)
+
+            if intent in ["lights_on", "lights_off"]:
+                from backend.actions.smart_home import trigger_smart_device
+                res = trigger_smart_device(intent)
+                return AssistantResponse(res, debug=debug)
 
             if intent == "schedule_message":
                 trigger_at, target, message = extract_scheduled_message(text)
@@ -477,6 +511,28 @@ class Assistant:
                 minimize_current_window()
                 return AssistantResponse("Minimized the current window", debug=debug)
 
+            if intent == "read_screen":
+                from backend.actions.vision import read_screen
+                screen_text = read_screen()
+                # Respond gracefully handling huge dumps of OCR string
+                summary = screen_text if len(screen_text) < 200 else screen_text[:200] + "... (Text is long, logged to memory.)"
+                return AssistantResponse(f"The screen says: {summary}", debug=debug)
+
+            if intent == "enable_ghost_mode":
+                from backend.actions.startup import add_to_startup
+                res = add_to_startup()
+                return AssistantResponse(res, debug=debug)
+
+            if intent == "disable_ghost_mode":
+                from backend.actions.startup import remove_from_startup
+                res = remove_from_startup()
+                return AssistantResponse(res, debug=debug)
+
+            if intent == "sync_memory":
+                from backend.database.vector_db import index_desktop_files
+                res = index_desktop_files()
+                return AssistantResponse(res, debug=debug)
+
             if intent == "confirm_yes":
                 return AssistantResponse("Nothing is waiting for confirmation.", debug=debug)
 
@@ -524,7 +580,7 @@ class Assistant:
         return target
 
     def run(self) -> None:
-        speak("Assistant is ready")
+        speak("Assistant is ready", language=self.language)
         try:
             while True:
                 command = listen()
@@ -550,16 +606,16 @@ class Assistant:
     def _run_reminder(self, reminder) -> None:
         kind = reminder["kind"]
         if kind == "alarm":
-            speak(reminder["message"] or "Alarm time reached")
+            speak(reminder["message"] or "Alarm time reached", language=self.language)
             return
         if kind == "message":
             target = reminder["target"] or ""
             message = reminder["message"] or ""
             try:
                 send_desktop_message(target, message)
-                speak(f"Scheduled message sent to {target}")
+                speak(f"Scheduled message sent to {target}", language=self.language)
             except Exception:
-                speak(f"I could not send the scheduled message to {target}")
+                speak(f"I could not send the scheduled message to {target}", language=self.language)
             return
 
 

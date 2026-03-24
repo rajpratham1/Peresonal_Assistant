@@ -39,7 +39,18 @@ class LLMCommandParser:
         self.client = LocalLLMClient()
 
     def parse(self, text: str) -> dict[str, Any] | None:
-        result = self.client.chat_json(SYSTEM_PROMPT, text)
+        context = ""
+        try:
+            from backend.database.vector_db import query_memory
+            context = query_memory(text)
+        except Exception:
+            pass
+
+        modified_prompt = SYSTEM_PROMPT
+        if context:
+            modified_prompt += f"\n\nHere is relevant context from the user's Infinite Memory desktop files so you can accurately answer or handle their query:\n{context}\n"
+
+        result = self.client.chat_json(modified_prompt, text)
         if not result.ok or not result.data:
             return None
         return result.data
