@@ -630,7 +630,7 @@ class Assistant:
         try:
             while True:
                 from backend.speech.speech_to_text import wait_for_wake_word
-                wait_for_wake_word(wake_word="viru")
+                wait_for_wake_word(wake_word="virus")
                 speak("जी मालिक", language="hi")
                 
                 command = listen()

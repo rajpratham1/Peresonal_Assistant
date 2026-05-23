@@ -13,9 +13,11 @@ try:
     from gtts import gTTS
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
     import pygame
+    _mixer_initialized = False
 except ImportError:  # pragma: no cover
     gTTS = None
     pygame = None
+    _mixer_initialized = False
 
 
 @lru_cache(maxsize=1)
@@ -24,11 +26,31 @@ def get_engine():
         return None
     engine = pyttsx3.init()
     engine.setProperty("rate", 175)
+    voices = engine.getProperty("voices")
+    # Prefer a higher-quality voice if available
+    for v in voices:
+        if "zira" in v.id.lower() or "david" in v.id.lower():
+            engine.setProperty("voice", v.id)
+            break
     return engine
 
 
+def _ensure_mixer() -> bool:
+    """Lazily initialise the pygame mixer once and keep it alive."""
+    global _mixer_initialized
+    if pygame is None:
+        return False
+    if not _mixer_initialized:
+        try:
+            pygame.mixer.init(frequency=22050, size=-16, channels=1, buffer=512)
+            _mixer_initialized = True
+        except Exception:
+            return False
+    return True
+
+
 def _speak_hindi(text: str) -> None:
-    if gTTS is None or pygame is None:
+    if gTTS is None or not _ensure_mixer():
         _speak_english(text)
         return
     try:
@@ -36,15 +58,12 @@ def _speak_hindi(text: str) -> None:
         fp = io.BytesIO()
         tts.write_to_fp(fp)
         fp.seek(0)
-        
-        pygame.mixer.init()
         pygame.mixer.music.load(fp, 'mp3')
         pygame.mixer.music.play()
         while pygame.mixer.music.get_busy():
             pygame.time.Clock().tick(10)
-        pygame.mixer.quit()
     except Exception:
-        # Fallback to English/default synthesized engine if network fails
+        # Fallback to English/default synthesised engine if network fails
         _speak_english(text)
 
 
