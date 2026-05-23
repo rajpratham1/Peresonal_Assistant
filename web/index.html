@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Viru — AI Desktop Assistant</title>
+  <meta name="description" content="Viru Elite AI Assistant — Dashboard, Chat, Notes, Reminders, Contacts, Files & more."/>
+  <link rel="manifest" href="/manifest.json"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="blob blob-3"></div>
+
+<div class="app">
+
+  <!-- ═══ SIDEBAR ═══════════════════════════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <div class="brand">
+        <div class="brand-orb"></div>
+        <span class="brand-name">Viru</span>
+        <span class="brand-version">v3.0</span>
+      </div>
+      <button class="sidebar-toggle" onclick="toggleSidebar()" title="Collapse">‹</button>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-btn active" id="nb-dashboard" onclick="goto('dashboard')">
+        <span class="nav-ico">🏠</span><span class="nav-lbl">Dashboard</span>
+      </button>
+      <button class="nav-btn" id="nb-chat" onclick="goto('chat')">
+        <span class="nav-ico">💬</span><span class="nav-lbl">Chat</span>
+        <span class="nav-badge" id="badge-chat" style="display:none">0</span>
+      </button>
+      <button class="nav-btn" id="nb-notes" onclick="goto('notes')">
+        <span class="nav-ico">📝</span><span class="nav-lbl">Notes</span>
+      </button>
+      <button class="nav-btn" id="nb-reminders" onclick="goto('reminders')">
+        <span class="nav-ico">⏰</span><span class="nav-lbl">Reminders</span>
+        <span class="nav-badge" id="badge-rem" style="display:none">0</span>
+      </button>
+      <button class="nav-btn" id="nb-contacts" onclick="goto('contacts')">
+        <span class="nav-ico">👥</span><span class="nav-lbl">Contacts</span>
+      </button>
+      <button class="nav-btn" id="nb-system" onclick="goto('system')">
+        <span class="nav-ico">📊</span><span class="nav-lbl">System</span>
+      </button>
+      <button class="nav-btn" id="nb-files" onclick="goto('files')">
+        <span class="nav-ico">📁</span><span class="nav-lbl">Files</span>
+      </button>
+      <button class="nav-btn" id="nb-history" onclick="goto('history')">
+        <span class="nav-ico">🕑</span><span class="nav-lbl">History</span>
+      </button>
+      <button class="nav-btn" id="nb-screenshots" onclick="goto('screenshots')">
+        <span class="nav-ico">🖼️</span><span class="nav-lbl">Screenshots</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="status-pill">
+        <span class="sdot" id="sdot"></span>
+        <span id="stxt">Checking…</span>
+      </div>
+      <a href="https://github.com/rajpratham1" target="_blank" class="gh-link">
+        <img src="https://github.com/rajpratham1.png" class="avatar-sm" alt="Pratham"/>
+        <span>@rajpratham1</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- ═══ MAIN ══════════════════════════════════════════════════════════════ -->
+  <main class="main" id="main">
+
+    <!-- ─── DASHBOARD ─────────────────────────────────────────────────────── -->
+    <section class="panel active" id="panel-dashboard">
+      <div class="ph"><h1>Dashboard</h1><p class="psub">Your command centre at a glance.</p></div>
+      <div class="dash-grid">
+
+        <!-- Weather card -->
+        <div class="dcard weather-card" id="weather-card">
+          <div class="wicon" id="w-icon">⛅</div>
+          <div class="winfo">
+            <div class="wtemp" id="w-temp">--°C</div>
+            <div class="wdesc" id="w-desc">Loading weather…</div>
+            <div class="wcity" id="w-city"></div>
+          </div>
+          <div class="wdetails">
+            <span id="w-humidity">💧 --%</span>
+            <span id="w-wind">💨 -- km/h</span>
+            <span id="w-feels">🌡️ --°C feels</span>
+          </div>
+        </div>
+
+        <!-- Stats strip -->
+        <div class="dcard stats-strip">
+          <div class="stat-item">
+            <div class="stat-label">CPU</div>
+            <div class="stat-ring">
+              <svg viewBox="0 0 36 36"><path class="ring-bg" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831"/><path class="ring-fill" id="cpu-ring" stroke-dasharray="0, 100" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831"/></svg>
+              <span id="cpu-val">--%</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">RAM</div>
+            <div class="stat-ring">
+              <svg viewBox="0 0 36 36"><path class="ring-bg" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831"/><path class="ring-fill ring-ram" id="ram-ring" stroke-dasharray="0, 100" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831"/></svg>
+              <span id="ram-val">--%</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">DISK</div>
+            <div class="stat-ring">
+              <svg viewBox="0 0 36 36"><path class="ring-bg" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831"/><path class="ring-fill ring-disk" id="disk-ring" stroke-dasharray="0, 100" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831"/></svg>
+              <span id="disk-val">--%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="dcard quick-actions">
+          <div class="card-title">Quick Actions</div>
+          <div class="qa-grid">
+            <button class="qa-btn" onclick="quickCmd('take screenshot')">📸 Screenshot</button>
+            <button class="qa-btn" onclick="quickCmd('lock pc')">🔒 Lock PC</button>
+            <button class="qa-btn" onclick="quickCmd('volume mute')">🔇 Mute</button>
+            <button class="qa-btn" onclick="quickCmd('open notepad')">📄 Notepad</button>
+            <button class="qa-btn" onclick="quickCmd('open chrome')">🌐 Chrome</button>
+            <button class="qa-btn" onclick="goto('chat')">💬 Ask Viru</button>
+          </div>
+        </div>
+
+        <!-- QR Code card -->
+        <div class="dcard qr-card">
+          <div class="card-title">Mobile Access</div>
+          <div id="qr-container"><div class="spinner"></div></div>
+          <div class="qr-url" id="qr-url">Loading…</div>
+          <div class="qr-hint">Scan with your phone on the same WiFi</div>
+        </div>
+
+        <!-- Recent commands -->
+        <div class="dcard recent-card">
+          <div class="card-title">Recent Commands</div>
+          <div id="recent-list"><div class="spinner"></div></div>
+        </div>
+
+        <!-- Summary tiles -->
+        <div class="dcard tile-card">
+          <div class="tile-item" onclick="goto('notes')">
+            <div class="tile-num" id="tile-notes">–</div>
+            <div class="tile-lbl">Notes</div>
+          </div>
+          <div class="tile-item" onclick="goto('reminders')">
+            <div class="tile-num" id="tile-rem">–</div>
+            <div class="tile-lbl">Pending Reminders</div>
+          </div>
+          <div class="tile-item" onclick="goto('contacts')">
+            <div class="tile-num" id="tile-contacts">–</div>
+            <div class="tile-lbl">Contacts</div>
+          </div>
+          <div class="tile-item" onclick="goto('history')">
+            <div class="tile-num" id="tile-msgs">–</div>
+            <div class="tile-lbl">Messages Sent</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ─── CHAT ───────────────────────────────────────────────────────────── -->
+    <section class="panel" id="panel-chat">
+      <div class="ph"><h1>Chat</h1><p class="psub">Talk to your AI assistant.</p></div>
+      <div class="chat-vp" id="chat-vp"></div>
+      <form class="ibar" onsubmit="sendMsg(event)">
+        <select class="lang-sel" id="lang-sel">
+          <option value="en">🇬🇧 EN</option>
+          <option value="hi">🇮🇳 HI</option>
+        </select>
+        <input id="msg-in" class="msg-in" type="text" placeholder="Ask Viru anything…" autocomplete="off"/>
+        <button type="button" class="ibtn" id="mic-btn" onclick="toggleMic()" title="Voice">🎙</button>
+        <button type="submit" class="ibtn-send">Send →</button>
+      </form>
+    </section>
+
+    <!-- ─── NOTES ──────────────────────────────────────────────────────────── -->
+    <section class="panel" id="panel-notes">
+      <div class="ph-row">
+        <div><h1>Notes</h1><p class="psub">Your personal knowledge base.</p></div>
+        <button class="btn-accent" onclick="showAddNote()">+ New Note</button>
+      </div>
+      <div id="notes-search-row" class="search-row">
+        <input type="text" class="search-in" id="notes-search" placeholder="Search notes…" oninput="filterNotes()"/>
+      </div>
+      <div class="card-grid" id="notes-grid"><div class="spinner"></div></div>
+
+      <!-- Modal -->
+      <div class="modal-backdrop" id="note-modal" onclick="closeModal('note-modal')">
+        <div class="modal" onclick="event.stopPropagation()">
+          <h3>New Note</h3>
+          <textarea id="note-content" class="modal-ta" placeholder="Write your note here…" rows="6"></textarea>
+          <div class="modal-actions">
+            <button class="btn-ghost" onclick="closeModal('note-modal')">Cancel</button>
+            <button class="btn-accent" onclick="saveNote()">Save Note</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── REMINDERS ─────────────────────────────────────────────────────── -->
+    <section class="panel" id="panel-reminders">
+      <div class="ph-row">
+        <div><h1>Reminders</h1><p class="psub">Alarms, tasks and scheduled messages.</p></div>
+        <button class="btn-accent" onclick="showAddReminder()">+ Add Reminder</button>
+      </div>
+      <div id="rem-list" class="list-container"><div class="spinner"></div></div>
+
+      <div class="modal-backdrop" id="rem-modal" onclick="closeModal('rem-modal')">
+        <div class="modal" onclick="event.stopPropagation()">
+          <h3>New Reminder</h3>
+          <div class="form-group">
+            <label>Type</label>
+            <select id="rem-kind" class="form-sel">
+              <option value="alarm">⏰ Alarm</option>
+              <option value="message">💬 Message</option>
+              <option value="task">✅ Task</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date & Time</label>
+            <input type="datetime-local" id="rem-time" class="form-in"/>
+          </div>
+          <div class="form-group">
+            <label>Message / Note</label>
+            <input type="text" id="rem-msg" class="form-in" placeholder="What to remind you of?"/>
+          </div>
+          <div class="form-group" id="rem-target-row">
+            <label>Target (for messages)</label>
+            <input type="text" id="rem-target" class="form-in" placeholder="Contact name"/>
+          </div>
+          <div class="modal-actions">
+            <button class="btn-ghost" onclick="closeModal('rem-modal')">Cancel</button>
+            <button class="btn-accent" onclick="saveReminder()">Save</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── CONTACTS ──────────────────────────────────────────────────────── -->
+    <section class="panel" id="panel-contacts">
+      <div class="ph-row">
+        <div><h1>Contacts</h1><p class="psub">Your personal address book.</p></div>
+        <button class="btn-accent" onclick="showAddContact()">+ Add Contact</button>
+      </div>
+      <div id="contacts-search-row" class="search-row">
+        <input type="text" class="search-in" id="contacts-search" placeholder="Search contacts…" oninput="filterContacts()"/>
+      </div>
+      <div id="contacts-grid" class="contacts-grid"><div class="spinner"></div></div>
+
+      <div class="modal-backdrop" id="contact-modal" onclick="closeModal('contact-modal')">
+        <div class="modal" onclick="event.stopPropagation()">
+          <h3>Add / Edit Contact</h3>
+          <div class="form-group"><label>Name *</label><input type="text" id="c-name" class="form-in" placeholder="full name"/></div>
+          <div class="form-group"><label>Phone</label><input type="text" id="c-phone" class="form-in" placeholder="10-digit number"/></div>
+          <div class="form-group"><label>Email</label><input type="email" id="c-email" class="form-in" placeholder="email@example.com"/></div>
+          <div class="form-group"><label>WhatsApp Name</label><input type="text" id="c-wa" class="form-in" placeholder="as saved in WhatsApp"/></div>
+          <div class="modal-actions">
+            <button class="btn-ghost" onclick="closeModal('contact-modal')">Cancel</button>
+            <button class="btn-accent" onclick="saveContact()">Save</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SYSTEM MONITOR ────────────────────────────────────────────────── -->
+    <section class="panel" id="panel-system">
+      <div class="ph"><h1>System Monitor</h1><p class="psub">Live performance metrics.</p></div>
+      <div class="sys-grid">
+        <div class="dcard chart-card">
+          <div class="card-title">CPU Usage</div>
+          <canvas id="cpu-chart" height="120"></canvas>
+          <div class="chart-val" id="cpu-chart-val">--%</div>
+        </div>
+        <div class="dcard chart-card">
+          <div class="card-title">RAM Usage</div>
+          <canvas id="ram-chart" height="120"></canvas>
+          <div class="chart-val" id="ram-chart-val">--%</div>
+        </div>
+        <div class="dcard sys-info-card">
+          <div class="card-title">Disk & Network</div>
+          <div class="info-row"><span>Disk Used</span><span id="si-disk">--</span></div>
+          <div class="info-row"><span>Net Sent</span><span id="si-sent">--</span></div>
+          <div class="info-row"><span>Net Recv</span><span id="si-recv">--</span></div>
+          <div class="info-row"><span>Boot Time</span><span id="si-boot">--</span></div>
+          <div class="info-row"><span>Host</span><span id="si-host">--</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── FILE BROWSER ──────────────────────────────────────────────────── -->
+    <section class="panel" id="panel-files">
+      <div class="ph"><h1>File Browser</h1><p class="psub">Navigate and open your files.</p></div>
+      <div class="file-toolbar">
+        <button class="fbtn" id="fb-up" onclick="filesUp()">↑ Up</button>
+        <div class="breadcrumb" id="fb-path">Loading…</div>
+        <div class="fb-shortcuts">
+          <button class="fbtn" onclick="filesLoad(desktopPath)">🖥 Desktop</button>
+          <button class="fbtn" onclick="filesLoad(docsPath)">📄 Documents</button>
+          <button class="fbtn" onclick="filesLoad(downloadsPath)">⬇ Downloads</button>
+        </div>
+      </div>
+      <div class="file-grid" id="file-grid"><div class="spinner"></div></div>
+    </section>
+
+    <!-- ─── HISTORY ───────────────────────────────────────────────────────── -->
+    <section class="panel" id="panel-history">
+      <div class="ph-row">
+        <div><h1>Chat History</h1><p class="psub">Every conversation, searchable.</p></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn-ghost" onclick="exportHistory()">⬇ Export</button>
+          <button class="btn-danger" onclick="clearHistory()">🗑 Clear All</button>
+        </div>
+      </div>
+      <div class="search-row">
+        <input type="text" class="search-in" id="hist-search" placeholder="Search messages…" oninput="filterHistory()"/>
+      </div>
+      <div id="hist-list" class="hist-list"><div class="spinner"></div></div>
+    </section>
+
+    <!-- ─── SCREENSHOTS ───────────────────────────────────────────────────── -->
+    <section class="panel" id="panel-screenshots">
+      <div class="ph"><h1>Screenshots</h1><p class="psub">All captured screenshots.</p></div>
+      <div id="ss-grid" class="ss-grid"><div class="spinner"></div></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lb-img" src="" alt="screenshot"/>
+  <button class="lb-close">✕</button>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

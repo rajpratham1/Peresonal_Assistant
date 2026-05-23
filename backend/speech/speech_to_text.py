@@ -144,12 +144,14 @@ def listen(sample_rate: int = 16000, chunk_size: int = 4000, language: str = "en
             return _listen_vosk(sample_rate=sample_rate, chunk_size=chunk_size)
         raise
 
-def wait_for_wake_word(sample_rate: int = 16000, chunk_size: int = 4000, wake_word: str = "viru") -> None:
+def wait_for_wake_word(sample_rate: int = 16000, chunk_size: int = 4000, wake_word: str = "virus") -> None:
     """Blocks with ~0 CPU overhead until exact grammar wake word is spoken."""
     if pyaudio is None or KaldiRecognizer is None:
         return
         
-    recognizer = KaldiRecognizer(load_model(), sample_rate, f'["{wake_word}", "[unk]"]')
+    # Build a grammar that includes the wake word plus an unknown-token fallback
+    grammar = f'["{wake_word}", "[unk]"]'
+    recognizer = KaldiRecognizer(load_model(), sample_rate, grammar)
     audio = pyaudio.PyAudio()
     stream = audio.open(format=pyaudio.paInt16, channels=1, rate=sample_rate, input=True, frames_per_buffer=chunk_size)
     
@@ -159,9 +161,16 @@ def wait_for_wake_word(sample_rate: int = 16000, chunk_size: int = 4000, wake_wo
             data = stream.read(chunk_size, exception_on_overflow=False)
             if recognizer.AcceptWaveform(data):
                 res = json.loads(recognizer.Result())
-                if wake_word in res.get("text", ""):
+                heard = res.get("text", "").strip()
+                if wake_word in heard:
+                    break
+            else:
+                # Also check partial results so the wake word is caught quickly
+                partial = json.loads(recognizer.PartialResult())
+                if wake_word in partial.get("partial", ""):
                     break
     finally:
         stream.stop_stream()
         stream.close()
         audio.terminate()
+

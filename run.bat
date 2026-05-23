@@ -1,9 +1,13 @@
 @echo off
+title Viru AI Assistant
 cd /d "%~dp0"
 call .venv\Scripts\activate.bat
 
-:: Launch Ghost Mode handler silently in the background
-start "" /B pythonw.exe -m backend.tray
+echo.
+echo  =========================================
+echo   Viru AI Assistant - Starting...
+echo  =========================================
+echo.
 
-:: Launch the main interactive graphical engine
-python -m frontend.gui
+python main_loader.py
+pause

@@ -17,3 +17,4 @@ torchaudio
 langchain
 chromadb
 playwright
+flask
