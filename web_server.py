@@ -36,6 +36,14 @@ def get_assistant() -> Assistant:
 WEB_DIR = Path(__file__).parent / "web"
 app = Flask(__name__, static_folder=str(WEB_DIR), static_url_path="")
 
+@app.after_request
+def add_header(response):
+    # Disable cache for static files to force browsers to load latest app.js/style.css
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 def db_conn():
     from backend.config import DATABASE_PATH, DATABASE_DIR
