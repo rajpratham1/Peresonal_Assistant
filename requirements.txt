@@ -18,3 +18,4 @@ langchain
 chromadb
 playwright
 flask
+qrcode
