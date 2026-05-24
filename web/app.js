@@ -194,6 +194,9 @@ function appendBubble(role, text, badge) {
   const row  = el("div", `brow ${role}`);
   const rl   = el("div", "brow-role", role === "user" ? "You" : "Viru");
   const bub  = el("div", "bub");
+  if (text) {
+    bub.textContent = text;
+  }
   row.appendChild(rl);
   row.appendChild(bub);
   if (badge) {
