@@ -47,6 +47,21 @@ def db_conn():
 def rows_to_list(rows):
     return [dict(r) for r in rows]
 
+def _get_lan_ip():
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+    except Exception:
+        try:
+            ip = socket.gethostbyname(socket.gethostname())
+        except Exception:
+            ip = '127.0.0.1'
+    finally:
+        s.close()
+    return ip
+
 # ── Static ─────────────────────────────────────────────────────────────────────
 @app.route("/")
 def index():
@@ -135,10 +150,7 @@ def dashboard():
         pass
 
     # LAN IP
-    try:
-        lan_ip = socket.gethostbyname(socket.gethostname())
-    except Exception:
-        lan_ip = "127.0.0.1"
+    lan_ip = _get_lan_ip()
 
     return jsonify({
         "cpu_percent":   cpu,
@@ -355,11 +367,7 @@ def open_file():
 @app.route("/api/qrcode")
 def qr_code():
     """Return a QR code SVG for the LAN URL."""
-    import socket
-    try:
-        lan_ip = socket.gethostbyname(socket.gethostname())
-    except Exception:
-        lan_ip = "127.0.0.1"
+    lan_ip = _get_lan_ip()
     url = f"http://{lan_ip}:5000"
     # Use qrcode if available, else return the URL only
     try:
